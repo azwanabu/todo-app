@@ -11,7 +11,7 @@ export default async function HomePage() {
   const { data: todos } = await supabase
     .from('todos')
     .select('*')
-    .order('inserted_at', { ascending: false })
+    .order('position', { ascending: true })
 
   return (
     <div className="min-h-screen">
@@ -30,6 +30,16 @@ export default async function HomePage() {
       </header>
       <main className="max-w-xl mx-auto px-4 py-8">
         <TodoList initialTodos={todos ?? []} userId={user.id} />
+        <div className="mt-10 pt-6 border-t border-gray-200">
+          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Your public top-5 link</p>
+          <a
+            href={`/u/${user.id}`}
+            target="_blank"
+            className="text-sm text-blue-500 hover:underline break-all"
+          >
+            {process.env.NEXT_PUBLIC_SITE_URL}/u/{user.id}
+          </a>
+        </div>
       </main>
     </div>
   )
