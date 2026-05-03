@@ -18,10 +18,12 @@ export default async function HomePage() {
           tags ( id, name, color_index, user_id )
         )
       `)
+      .eq('user_id', user.id)
       .order('position', { ascending: true }),
     supabase
       .from('tags')
       .select('*')
+      .eq('user_id', user.id)
       .order('inserted_at', { ascending: true }),
   ])
 
@@ -31,6 +33,7 @@ export default async function HomePage() {
     const { data: plainTodos } = await supabase
       .from('todos')
       .select('*')
+      .eq('user_id', user.id)
       .order('position', { ascending: true })
     todos = plainTodos?.map(t => ({ ...t, todo_tags: [] })) ?? []
   }
