@@ -18,6 +18,9 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { createClient } from '@/lib/supabase/client'
 
+const PREVIEW_SIZE = 5
+const PAGE_SIZE = 20
+
 type Todo = {
   id: string
   task: string
@@ -108,8 +111,19 @@ export default function TodoList({
   const [todos, setTodos] = useState<Todo[]>(sorted)
   const [newTask, setNewTask] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showAll, setShowAll] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
 
   const sensors = useSensors(useSensor(PointerSensor))
+
+  const usePagination = todos.length > PAGE_SIZE
+  const totalPages = Math.ceil(todos.length / PAGE_SIZE)
+
+  const visibleTodos = usePagination
+    ? todos.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+    : !showAll && todos.length > PREVIEW_SIZE
+      ? todos.slice(0, PREVIEW_SIZE)
+      : todos
 
   async function addTodo(e: React.FormEvent) {
     e.preventDefault()
@@ -125,8 +139,12 @@ export default function TodoList({
       .single()
 
     if (!error && data) {
-      setTodos([...todos, data])
+      const next = [...todos, data]
+      setTodos(next)
       setNewTask('')
+      if (next.length > PAGE_SIZE) {
+        setCurrentPage(Math.ceil(next.length / PAGE_SIZE))
+      }
     }
     setLoading(false)
   }
@@ -146,7 +164,14 @@ export default function TodoList({
   async function deleteTodo(id: string) {
     const supabase = createClient()
     const { error } = await supabase.from('todos').delete().eq('id', id)
-    if (!error) setTodos(todos.filter(t => t.id !== id))
+    if (!error) {
+      const next = todos.filter(t => t.id !== id)
+      setTodos(next)
+      const newTotalPages = Math.ceil(next.length / PAGE_SIZE)
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(newTotalPages)
+      }
+    }
   }
 
   async function handleDragEnd(event: DragEndEvent) {
@@ -164,8 +189,8 @@ export default function TodoList({
     )
   }
 
-  const pending = todos.filter(t => !t.is_complete)
-  const completed = todos.filter(t => t.is_complete)
+  const pending = visibleTodos.filter(t => !t.is_complete)
+  const completed = visibleTodos.filter(t => t.is_complete)
 
   return (
     <div className="space-y-6">
@@ -210,6 +235,39 @@ export default function TodoList({
               <SortableTodoItem key={todo.id} todo={todo} onToggle={toggleTodo} onDelete={deleteTodo} />
             ))}
           </div>
+        </div>
+      )}
+
+      {!usePagination && todos.length > PREVIEW_SIZE && (
+        <button
+          onClick={() => setShowAll(v => !v)}
+          className="w-full text-sm text-blue-500 hover:text-blue-700 py-2 transition-colors"
+        >
+          {showAll
+            ? 'Show less'
+            : `Show ${todos.length - PREVIEW_SIZE} more`}
+        </button>
+      )}
+
+      {usePagination && totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-gray-500">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Next
+          </button>
         </div>
       )}
     </div>
