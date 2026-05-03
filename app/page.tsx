@@ -8,10 +8,22 @@ export default async function HomePage() {
 
   if (!user) redirect('/login')
 
-  const { data: todos } = await supabase
-    .from('todos')
-    .select('*')
-    .order('position', { ascending: true })
+  const [{ data: todos }, { data: tags }] = await Promise.all([
+    supabase
+      .from('todos')
+      .select(`
+        *,
+        todo_tags (
+          tag_id,
+          tags ( id, name, color_index, user_id )
+        )
+      `)
+      .order('position', { ascending: true }),
+    supabase
+      .from('tags')
+      .select('*')
+      .order('inserted_at', { ascending: true }),
+  ])
 
   return (
     <div className="min-h-screen">
@@ -29,7 +41,7 @@ export default async function HomePage() {
         </div>
       </header>
       <main className="max-w-xl mx-auto px-4 py-8">
-        <TodoList initialTodos={todos ?? []} userId={user.id} />
+        <TodoList initialTodos={todos ?? []} initialTags={tags ?? []} userId={user.id} />
         <div className="mt-10 pt-6 border-t border-gray-200">
           <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Your public top-5 link</p>
           <a
