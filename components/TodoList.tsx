@@ -126,7 +126,7 @@ function TagPicker({
                 {tag.name}
               </span>
               {assigned && (
-                <svg className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               )}
@@ -203,7 +203,7 @@ function SortableTodoItem({
     >
       <div className="flex items-center gap-3">
         <button
-          className="cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
+          className="cursor-grab active:cursor-grabbing shrink-0 touch-none"
           {...attributes}
           {...listeners}
         >
@@ -212,7 +212,7 @@ function SortableTodoItem({
 
         <button
           onClick={() => onToggle(todo)}
-          className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
+          className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
             todo.is_complete
               ? 'bg-green-500 border-green-500 text-white'
               : 'border-gray-300 hover:border-blue-400'
@@ -229,58 +229,55 @@ function SortableTodoItem({
           {todo.task}
         </span>
 
+        <div className="flex items-center gap-1 flex-wrap justify-end">
+          {assignedTags.map(tag => {
+            const c = tagColor(tag.color_index)
+            return (
+              <span
+                key={tag.id}
+                className="inline-flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{ backgroundColor: c.bg, color: c.text }}
+              >
+                <button onClick={() => onTagFilterClick(tag.id)} className="hover:underline">
+                  {tag.name}
+                </button>
+                <button
+                  onClick={() => onRemoveTag(todo.id, tag.id)}
+                  className="hover:opacity-50 transition-opacity leading-none ml-0.5"
+                  title="Remove tag"
+                >
+                  ×
+                </button>
+              </span>
+            )
+          })}
+
+          <div className="relative" ref={pickerContainerRef}>
+            <button
+              onClick={() => setPickerOpen(v => !v)}
+              className="text-xs text-gray-400 hover:text-gray-600 px-1.5 py-0.5 rounded border border-dashed border-gray-200 hover:border-gray-400 transition-colors"
+            >
+              + tag
+            </button>
+            {pickerOpen && (
+              <TagPicker
+                todo={todo}
+                tags={tags}
+                onAdd={onAddTag}
+                onRemove={onRemoveTag}
+                onCreateAndAdd={onCreateAndAddTag}
+                onClose={() => setPickerOpen(false)}
+              />
+            )}
+          </div>
+        </div>
+
         <button
           onClick={() => onDelete(todo.id)}
-          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all text-lg leading-none"
+          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all text-lg leading-none shrink-0"
         >
           ×
         </button>
-      </div>
-
-      <div className="ml-10 mt-2 flex flex-wrap gap-1 items-center">
-        {assignedTags.map(tag => {
-          const c = tagColor(tag.color_index)
-          return (
-            <span
-              key={tag.id}
-              className="inline-flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full font-medium"
-              style={{ backgroundColor: c.bg, color: c.text }}
-            >
-              <button
-                onClick={() => onTagFilterClick(tag.id)}
-                className="hover:underline"
-              >
-                {tag.name}
-              </button>
-              <button
-                onClick={() => onRemoveTag(todo.id, tag.id)}
-                className="hover:opacity-50 transition-opacity leading-none ml-0.5"
-                title="Remove tag"
-              >
-                ×
-              </button>
-            </span>
-          )
-        })}
-
-        <div className="relative" ref={pickerContainerRef}>
-          <button
-            onClick={() => setPickerOpen(v => !v)}
-            className="text-xs text-gray-400 hover:text-gray-600 px-1.5 py-0.5 rounded border border-dashed border-gray-200 hover:border-gray-400 transition-colors"
-          >
-            + tag
-          </button>
-          {pickerOpen && (
-            <TagPicker
-              todo={todo}
-              tags={tags}
-              onAdd={onAddTag}
-              onRemove={onRemoveTag}
-              onCreateAndAdd={onCreateAndAddTag}
-              onClose={() => setPickerOpen(false)}
-            />
-          )}
-        </div>
       </div>
     </div>
   )
