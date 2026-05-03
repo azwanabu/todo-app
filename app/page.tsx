@@ -54,13 +54,14 @@ export default async function HomePage() {
         <TodoList initialTodos={todos ?? []} initialTags={tags ?? []} userId={user.id} />
         <div className="mt-10 pt-6 border-t border-gray-200">
           <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Your public top-5 link</p>
-          <a
-            href={`/u/${user.id}`}
-            target="_blank"
-            className="text-sm text-blue-500 hover:underline break-all"
-          >
-            {process.env.NEXT_PUBLIC_SITE_URL}/u/{user.id}
-          </a>
+          {(() => {
+            const shareUrl = `${(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://todo.qprm.com').trim().replace(/\/$/, '')}/u/${user.id}`
+            return (
+              <a href={shareUrl} target="_blank" className="text-sm text-blue-500 hover:underline break-all">
+                {shareUrl}
+              </a>
+            )
+          })()}
         </div>
       </main>
     </div>
