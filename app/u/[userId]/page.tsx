@@ -17,7 +17,7 @@ export default async function PublicTodoPage({ params }: { params: Promise<{ use
   const { userId } = await params
   const supabase = await createClient()
 
-  const { data: todos } = await supabase
+  const { data: todosWithTags, error: todosError } = await supabase
     .from('todos')
     .select(`
       id, task, position,
@@ -30,6 +30,18 @@ export default async function PublicTodoPage({ params }: { params: Promise<{ use
     .eq('is_complete', false)
     .order('position', { ascending: true })
     .limit(5)
+
+  let todos = todosWithTags
+  if (todosError) {
+    const { data: plain } = await supabase
+      .from('todos')
+      .select('id, task, position')
+      .eq('user_id', userId)
+      .eq('is_complete', false)
+      .order('position', { ascending: true })
+      .limit(5)
+    todos = plain?.map(t => ({ ...t, todo_tags: [] })) ?? []
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">

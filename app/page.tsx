@@ -8,7 +8,7 @@ export default async function HomePage() {
 
   if (!user) redirect('/login')
 
-  const [{ data: todos }, { data: tags }] = await Promise.all([
+  const [{ data: todosWithTags, error: todosError }, { data: tags }] = await Promise.all([
     supabase
       .from('todos')
       .select(`
@@ -24,6 +24,16 @@ export default async function HomePage() {
       .select('*')
       .order('inserted_at', { ascending: true }),
   ])
+
+  // If the tags tables don't exist yet, fall back to plain todos with empty tag arrays
+  let todos = todosWithTags
+  if (todosError) {
+    const { data: plainTodos } = await supabase
+      .from('todos')
+      .select('*')
+      .order('position', { ascending: true })
+    todos = plainTodos?.map(t => ({ ...t, todo_tags: [] })) ?? []
+  }
 
   return (
     <div className="min-h-screen">
