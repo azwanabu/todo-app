@@ -225,50 +225,53 @@ function SortableTodoItem({
           )}
         </button>
 
-        <span className={`flex-1 text-sm ${todo.is_complete ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-          {todo.task}
-        </span>
+        {/* content: task + tags — stacks on mobile, inline on desktop */}
+        <div className="flex-1 flex flex-col md:flex-row md:items-center gap-1 md:gap-2 min-w-0">
+          <span className={`text-sm md:flex-1 min-w-0 ${todo.is_complete ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+            {todo.task}
+          </span>
 
-        <div className="flex items-center gap-1 flex-wrap justify-end">
-          {assignedTags.map(tag => {
-            const c = tagColor(tag.color_index)
-            return (
-              <span
-                key={tag.id}
-                className="inline-flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full font-medium"
-                style={{ backgroundColor: c.bg, color: c.text }}
-              >
-                <button onClick={() => onTagFilterClick(tag.id)} className="hover:underline">
-                  {tag.name}
-                </button>
-                <button
-                  onClick={() => onRemoveTag(todo.id, tag.id)}
-                  className="hover:opacity-50 transition-opacity leading-none ml-0.5"
-                  title="Remove tag"
+          <div className="flex items-center gap-1 flex-wrap">
+            {assignedTags.map(tag => {
+              const c = tagColor(tag.color_index)
+              return (
+                <span
+                  key={tag.id}
+                  className="inline-flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={{ backgroundColor: c.bg, color: c.text }}
                 >
-                  ×
-                </button>
-              </span>
-            )
-          })}
+                  <button onClick={() => onTagFilterClick(tag.id)} className="hover:underline">
+                    {tag.name}
+                  </button>
+                  <button
+                    onClick={() => onRemoveTag(todo.id, tag.id)}
+                    className="hover:opacity-50 transition-opacity leading-none ml-0.5"
+                    title="Remove tag"
+                  >
+                    ×
+                  </button>
+                </span>
+              )
+            })}
 
-          <div className="relative" ref={pickerContainerRef}>
-            <button
-              onClick={() => setPickerOpen(v => !v)}
-              className="text-xs text-gray-400 hover:text-gray-600 px-1.5 py-0.5 rounded border border-dashed border-gray-200 hover:border-gray-400 transition-colors"
-            >
-              + tag
-            </button>
-            {pickerOpen && (
-              <TagPicker
-                todo={todo}
-                tags={tags}
-                onAdd={onAddTag}
-                onRemove={onRemoveTag}
-                onCreateAndAdd={onCreateAndAddTag}
-                onClose={() => setPickerOpen(false)}
-              />
-            )}
+            <div className="relative" ref={pickerContainerRef}>
+              <button
+                onClick={() => setPickerOpen(v => !v)}
+                className="text-xs text-gray-400 hover:text-gray-600 px-1.5 py-0.5 rounded border border-dashed border-gray-200 hover:border-gray-400 transition-colors"
+              >
+                + tag
+              </button>
+              {pickerOpen && (
+                <TagPicker
+                  todo={todo}
+                  tags={tags}
+                  onAdd={onAddTag}
+                  onRemove={onRemoveTag}
+                  onCreateAndAdd={onCreateAndAddTag}
+                  onClose={() => setPickerOpen(false)}
+                />
+              )}
+            </div>
           </div>
         </div>
 

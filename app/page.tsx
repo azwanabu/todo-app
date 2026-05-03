@@ -44,7 +44,7 @@ export default async function HomePage() {
         <div className="max-w-xl mx-auto flex items-center justify-between">
           <h1 className="text-lg font-bold text-gray-900">My Todos</h1>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500">{user.email}</span>
+            <span className="text-sm text-gray-500 truncate max-w-35 sm:max-w-none">{user.email}</span>
             <form action="/auth/signout" method="post">
               <button className="text-sm text-red-500 hover:text-red-700 transition-colors">
                 Sign out
