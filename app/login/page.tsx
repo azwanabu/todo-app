@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -34,6 +34,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
+  useEffect(() => {
+    const saved = localStorage.getItem('rm_creds')
+    if (saved) {
+      const { e, p } = JSON.parse(saved)
+      setEmail(e)
+      setPassword(p)
+      setRememberMe(true)
+    }
+  }, [])
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -59,6 +69,12 @@ export default function LoginPage() {
           remember: rememberMe,
         }),
       })
+    }
+
+    if (rememberMe) {
+      localStorage.setItem('rm_creds', JSON.stringify({ e: email, p: password }))
+    } else {
+      localStorage.removeItem('rm_creds')
     }
 
     router.push('/')
