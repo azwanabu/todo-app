@@ -32,7 +32,7 @@ export default async function PublicTodoPage({ params }: { params: Promise<{ use
         )}
 
         <p className="text-xs text-gray-300 mt-8 text-center">
-          Powered by todo-app
+          Powered by todo-app · <a href="/login" className="text-orange-400 hover:text-orange-500">Login</a>
         </p>
       </div>
     </div>
