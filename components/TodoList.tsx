@@ -98,10 +98,7 @@ function TagPicker({
           value={search}
           onChange={e => setSearch(e.target.value)}
           onKeyDown={e => {
-            if (e.key === 'Enter' && canCreate) {
-              onCreateAndAdd(todo.id, search.trim())
-              onClose()
-            }
+            if (e.key === 'Enter' && canCreate) { onCreateAndAdd(todo.id, search.trim()); onClose() }
             if (e.key === 'Escape') onClose()
           }}
           placeholder="Search or create tag…"
@@ -119,10 +116,7 @@ function TagPicker({
               onClick={() => (assigned ? onRemove(todo.id, tag.id) : onAdd(todo.id, tag.id))}
               className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              <span
-                className="text-xs px-2 py-0.5 rounded-full font-medium"
-                style={{ backgroundColor: c.bg, color: c.text }}
-              >
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: c.bg, color: c.text }}>
                 {tag.name}
               </span>
               {assigned && (
@@ -151,16 +145,7 @@ function TagPicker({
   )
 }
 
-function SortableTodoItem({
-  todo,
-  tags,
-  onToggle,
-  onDelete,
-  onAddTag,
-  onRemoveTag,
-  onCreateAndAddTag,
-  onTagFilterClick,
-}: {
+type ItemProps = {
   todo: Todo
   tags: Tag[]
   onToggle: (t: Todo) => void
@@ -169,18 +154,21 @@ function SortableTodoItem({
   onRemoveTag: (todoId: string, tagId: string) => Promise<void>
   onCreateAndAddTag: (todoId: string, name: string) => Promise<void>
   onTagFilterClick: (tagId: string) => void
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: todo.id,
-  })
+}
+
+function ItemBody({
+  todo,
+  tags,
+  onToggle,
+  onDelete,
+  onAddTag,
+  onRemoveTag,
+  onCreateAndAddTag,
+  onTagFilterClick,
+  dragHandleProps,
+}: ItemProps & { dragHandleProps?: React.HTMLAttributes<HTMLButtonElement> }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const pickerContainerRef = useRef<HTMLDivElement>(null)
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  }
 
   useEffect(() => {
     if (!pickerOpen) return
@@ -196,19 +184,15 @@ function SortableTodoItem({
   const assignedTags = todo.todo_tags.map(tt => tt.tags).filter(Boolean)
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="bg-white border border-gray-200 rounded-xl px-4 py-3 group"
-    >
+    <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 group">
       <div className="flex items-center gap-3">
-        <button
-          className="cursor-grab active:cursor-grabbing shrink-0 touch-none"
-          {...attributes}
-          {...listeners}
-        >
-          <DragHandle />
-        </button>
+        {dragHandleProps ? (
+          <button className="cursor-grab active:cursor-grabbing shrink-0 touch-none" {...dragHandleProps}>
+            <DragHandle />
+          </button>
+        ) : (
+          <div className="w-4 shrink-0" />
+        )}
 
         <button
           onClick={() => onToggle(todo)}
@@ -225,12 +209,10 @@ function SortableTodoItem({
           )}
         </button>
 
-        {/* content: task + tags — stacks on mobile, inline on desktop */}
         <div className="flex-1 flex flex-col md:flex-row md:items-center gap-1 md:gap-2 min-w-0">
           <span className={`text-sm md:flex-1 min-w-0 ${todo.is_complete ? 'line-through text-gray-400' : 'text-gray-800'}`}>
             {todo.task}
           </span>
-
           <div className="flex items-center gap-1 flex-wrap">
             {assignedTags.map(tag => {
               const c = tagColor(tag.color_index)
@@ -240,20 +222,15 @@ function SortableTodoItem({
                   className="inline-flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full font-medium"
                   style={{ backgroundColor: c.bg, color: c.text }}
                 >
-                  <button onClick={() => onTagFilterClick(tag.id)} className="hover:underline">
-                    {tag.name}
-                  </button>
+                  <button onClick={() => onTagFilterClick(tag.id)} className="hover:underline">{tag.name}</button>
                   <button
                     onClick={() => onRemoveTag(todo.id, tag.id)}
                     className="hover:opacity-50 transition-opacity leading-none ml-0.5"
                     title="Remove tag"
-                  >
-                    ×
-                  </button>
+                  >×</button>
                 </span>
               )
             })}
-
             <div className="relative" ref={pickerContainerRef}>
               <button
                 onClick={() => setPickerOpen(v => !v)}
@@ -286,6 +263,22 @@ function SortableTodoItem({
   )
 }
 
+function SortableTodoItem(props: ItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.todo.id })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+    >
+      <ItemBody {...props} dragHandleProps={{ ...attributes, ...listeners } as React.HTMLAttributes<HTMLButtonElement>} />
+    </div>
+  )
+}
+
+function DoneItem(props: ItemProps) {
+  return <ItemBody {...props} />
+}
+
 export default function TodoList({
   initialTodos,
   initialTags,
@@ -303,8 +296,15 @@ export default function TodoList({
   const [showAll, setShowAll] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [activeTagIds, setActiveTagIds] = useState<Set<string>>(new Set())
+  const [activeTab, setActiveTab] = useState<'todo' | 'done'>('todo')
 
   const sensors = useSensors(useSensor(PointerSensor))
+
+  function switchTab(tab: 'todo' | 'done') {
+    setActiveTab(tab)
+    setCurrentPage(1)
+    setShowAll(false)
+  }
 
   function toggleTagFilter(tagId: string) {
     setCurrentPage(1)
@@ -322,17 +322,18 @@ export default function TodoList({
       ? todos
       : todos.filter(t => t.todo_tags.some(tt => activeTagIds.has(tt.tag_id)))
 
-  const usePagination = filteredTodos.length > PAGE_SIZE
-  const totalPages = Math.ceil(filteredTodos.length / PAGE_SIZE)
+  const filteredPending = filteredTodos.filter(t => !t.is_complete)
+  const filteredCompleted = filteredTodos.filter(t => t.is_complete)
+  const currentTabItems = activeTab === 'todo' ? filteredPending : filteredCompleted
 
-  const visibleTodos = usePagination
-    ? filteredTodos.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
-    : !showAll && filteredTodos.length > PREVIEW_SIZE
-      ? filteredTodos.slice(0, PREVIEW_SIZE)
-      : filteredTodos
+  const usePagination = currentTabItems.length > PAGE_SIZE
+  const totalPages = Math.ceil(currentTabItems.length / PAGE_SIZE)
 
-  const pending = visibleTodos.filter(t => !t.is_complete)
-  const completed = visibleTodos.filter(t => t.is_complete)
+  const visibleItems = usePagination
+    ? currentTabItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+    : !showAll && currentTabItems.length > PREVIEW_SIZE
+      ? currentTabItems.slice(0, PREVIEW_SIZE)
+      : currentTabItems
 
   async function addTodo(e: React.FormEvent) {
     e.preventDefault()
@@ -346,20 +347,16 @@ export default function TodoList({
       .select()
       .single()
     if (!error && data) {
-      const next = [...todos, { ...data, todo_tags: [] }]
-      setTodos(next)
+      setTodos(prev => [...prev, { ...data, todo_tags: [] }])
       setNewTask('')
-      if (next.length > PAGE_SIZE) setCurrentPage(Math.ceil(next.length / PAGE_SIZE))
+      if (activeTab !== 'todo') switchTab('todo')
     }
     setLoading(false)
   }
 
   async function toggleTodo(todo: Todo) {
     const supabase = createClient()
-    const { error } = await supabase
-      .from('todos')
-      .update({ is_complete: !todo.is_complete })
-      .eq('id', todo.id)
+    const { error } = await supabase.from('todos').update({ is_complete: !todo.is_complete }).eq('id', todo.id)
     if (!error) {
       setTodos(prev => prev.map(t => t.id === todo.id ? { ...t, is_complete: !t.is_complete } : t))
     }
@@ -371,7 +368,7 @@ export default function TodoList({
     if (!error) {
       const next = todos.filter(t => t.id !== id)
       setTodos(next)
-      const newTotal = Math.ceil(next.length / PAGE_SIZE)
+      const newTotal = Math.ceil(next.filter(t => t.is_complete === (activeTab === 'done')).length / PAGE_SIZE)
       if (currentPage > newTotal && newTotal > 0) setCurrentPage(newTotal)
     }
   }
@@ -392,62 +389,40 @@ export default function TodoList({
     const { error } = await supabase.from('todo_tags').insert({ todo_id: todoId, tag_id: tagId })
     if (!error) {
       const tag = tags.find(t => t.id === tagId)
-      if (tag) {
-        setTodos(prev =>
-          prev.map(t =>
-            t.id === todoId
-              ? { ...t, todo_tags: [...t.todo_tags, { tag_id: tagId, tags: tag }] }
-              : t
-          )
-        )
-      }
+      if (tag) setTodos(prev => prev.map(t => t.id === todoId ? { ...t, todo_tags: [...t.todo_tags, { tag_id: tagId, tags: tag }] } : t))
     }
   }
 
   async function removeTag(todoId: string, tagId: string) {
     const supabase = createClient()
-    const { error } = await supabase
-      .from('todo_tags')
-      .delete()
-      .eq('todo_id', todoId)
-      .eq('tag_id', tagId)
-    if (!error) {
-      setTodos(prev =>
-        prev.map(t =>
-          t.id === todoId
-            ? { ...t, todo_tags: t.todo_tags.filter(tt => tt.tag_id !== tagId) }
-            : t
-        )
-      )
-    }
+    const { error } = await supabase.from('todo_tags').delete().eq('todo_id', todoId).eq('tag_id', tagId)
+    if (!error) setTodos(prev => prev.map(t => t.id === todoId ? { ...t, todo_tags: t.todo_tags.filter(tt => tt.tag_id !== tagId) } : t))
   }
 
   async function createAndAddTag(todoId: string, name: string) {
     const supabase = createClient()
     const color_index = tags.length % TAG_COLORS.length
-    const { data: newTag, error } = await supabase
-      .from('tags')
-      .insert({ name, user_id: userId, color_index })
-      .select()
-      .single()
+    const { data: newTag, error } = await supabase.from('tags').insert({ name, user_id: userId, color_index }).select().single()
     if (error || !newTag) return
-    const { error: linkError } = await supabase
-      .from('todo_tags')
-      .insert({ todo_id: todoId, tag_id: newTag.id })
+    const { error: linkError } = await supabase.from('todo_tags').insert({ todo_id: todoId, tag_id: newTag.id })
     if (!linkError) {
       setTags(prev => [...prev, newTag])
-      setTodos(prev =>
-        prev.map(t =>
-          t.id === todoId
-            ? { ...t, todo_tags: [...t.todo_tags, { tag_id: newTag.id, tags: newTag }] }
-            : t
-        )
-      )
+      setTodos(prev => prev.map(t => t.id === todoId ? { ...t, todo_tags: [...t.todo_tags, { tag_id: newTag.id, tags: newTag }] } : t))
     }
   }
 
+  const itemProps = {
+    tags,
+    onToggle: toggleTodo,
+    onDelete: deleteTodo,
+    onAddTag: addTag,
+    onRemoveTag: removeTag,
+    onCreateAndAddTag: createAndAddTag,
+    onTagFilterClick: toggleTagFilter,
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <form onSubmit={addTodo} className="flex gap-2">
         <input
           type="text"
@@ -474,12 +449,7 @@ export default function TodoList({
               <button
                 key={tag.id}
                 onClick={() => toggleTagFilter(tag.id)}
-                style={{
-                  backgroundColor: c.bg,
-                  color: c.text,
-                  outline: active ? `2px solid ${c.text}` : 'none',
-                  outlineOffset: '2px',
-                }}
+                style={{ backgroundColor: c.bg, color: c.text, outline: active ? `2px solid ${c.text}` : 'none', outlineOffset: '2px' }}
                 className="text-xs px-2.5 py-1 rounded-full font-medium transition-all"
               >
                 {tag.name}
@@ -497,63 +467,76 @@ export default function TodoList({
         </div>
       )}
 
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200">
+        <button
+          onClick={() => switchTab('todo')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'todo'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          To Do
+          {filteredPending.length > 0 && (
+            <span className="ml-1.5 text-xs bg-blue-100 text-blue-600 rounded-full px-1.5 py-0.5">{filteredPending.length}</span>
+          )}
+        </button>
+        <button
+          onClick={() => switchTab('done')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'done'
+              ? 'border-green-600 text-green-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Done
+          {filteredCompleted.length > 0 && (
+            <span className="ml-1.5 text-xs bg-green-100 text-green-600 rounded-full px-1.5 py-0.5">{filteredCompleted.length}</span>
+          )}
+        </button>
+      </div>
+
       {todos.length === 0 && (
         <p className="text-center text-gray-400 text-sm py-10">No todos yet. Add one above!</p>
       )}
 
-      {filteredTodos.length === 0 && todos.length > 0 && (
-        <p className="text-center text-gray-400 text-sm py-6">No todos match the selected tags.</p>
+      {currentTabItems.length === 0 && todos.length > 0 && (
+        <p className="text-center text-gray-400 text-sm py-8">
+          {activeTagIds.size > 0
+            ? 'No tasks match the selected tags.'
+            : activeTab === 'todo'
+              ? 'All done! Nothing left to do.'
+              : 'No completed tasks yet.'}
+        </p>
       )}
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        {pending.length > 0 && (
-          <SortableContext items={pending.map(t => t.id)} strategy={verticalListSortingStrategy}>
+      {activeTab === 'todo' && visibleItems.length > 0 && (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={visibleItems.map(t => t.id)} strategy={verticalListSortingStrategy}>
             <div className="space-y-2">
-              {pending.map(todo => (
-                <SortableTodoItem
-                  key={todo.id}
-                  todo={todo}
-                  tags={tags}
-                  onToggle={toggleTodo}
-                  onDelete={deleteTodo}
-                  onAddTag={addTag}
-                  onRemoveTag={removeTag}
-                  onCreateAndAddTag={createAndAddTag}
-                  onTagFilterClick={toggleTagFilter}
-                />
+              {visibleItems.map(todo => (
+                <SortableTodoItem key={todo.id} todo={todo} {...itemProps} />
               ))}
             </div>
           </SortableContext>
-        )}
-      </DndContext>
+        </DndContext>
+      )}
 
-      {completed.length > 0 && (
-        <div>
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Completed</p>
-          <div className="space-y-2">
-            {completed.map(todo => (
-              <SortableTodoItem
-                key={todo.id}
-                todo={todo}
-                tags={tags}
-                onToggle={toggleTodo}
-                onDelete={deleteTodo}
-                onAddTag={addTag}
-                onRemoveTag={removeTag}
-                onCreateAndAddTag={createAndAddTag}
-                onTagFilterClick={toggleTagFilter}
-              />
-            ))}
-          </div>
+      {activeTab === 'done' && visibleItems.length > 0 && (
+        <div className="space-y-2">
+          {visibleItems.map(todo => (
+            <DoneItem key={todo.id} todo={todo} {...itemProps} />
+          ))}
         </div>
       )}
 
-      {!usePagination && filteredTodos.length > PREVIEW_SIZE && (
+      {!usePagination && currentTabItems.length > PREVIEW_SIZE && (
         <button
           onClick={() => setShowAll(v => !v)}
           className="w-full text-sm text-blue-500 hover:text-blue-700 py-2 transition-colors"
         >
-          {showAll ? 'Show less' : `Show ${filteredTodos.length - PREVIEW_SIZE} more`}
+          {showAll ? 'Show less' : `Show ${currentTabItems.length - PREVIEW_SIZE} more`}
         </button>
       )}
 
