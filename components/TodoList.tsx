@@ -218,12 +218,14 @@ function DueDatePicker({
 
 function ManageTagsModal({
   tags,
+  tagCounts,
   onClose,
   onCreate,
   onRename,
   onDelete,
 }: {
   tags: Tag[]
+  tagCounts: Record<string, number>
   onClose: () => void
   onCreate: (name: string) => Promise<void>
   onRename: (tagId: string, name: string) => Promise<void>
@@ -251,6 +253,7 @@ function ManageTagsModal({
           {tags.length === 0 && <p className="text-xs text-gray-400 text-center py-4">No tags yet.</p>}
           {tags.map(tag => {
             const c = tagColor(tag.color_index)
+            const count = tagCounts[tag.id] ?? 0
             return (
               <div key={tag.id} className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.text }} />
@@ -274,8 +277,21 @@ function ManageTagsModal({
                     {tag.name}
                   </button>
                 )}
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0 ${
+                    count === 0 ? 'bg-amber-50 text-amber-500' : 'bg-gray-100 text-gray-400'
+                  }`}
+                  title={count === 0 ? 'Not used by any task' : `Used by ${count} task${count === 1 ? '' : 's'}`}
+                >
+                  {count === 0 ? 'unused' : `${count} task${count === 1 ? '' : 's'}`}
+                </span>
                 <button
-                  onClick={() => { if (confirm(`Delete tag "${tag.name}"? It will be removed from all todos.`)) onDelete(tag.id) }}
+                  onClick={() => {
+                    const message = count > 0
+                      ? `Delete tag "${tag.name}"? It will be removed from ${count} task${count === 1 ? '' : 's'}.`
+                      : `Delete tag "${tag.name}"?`
+                    if (confirm(message)) onDelete(tag.id)
+                  }}
                   className="text-gray-300 hover:text-red-400 transition-colors text-sm leading-none px-1 shrink-0"
                   title="Delete tag"
                 >
@@ -510,6 +526,11 @@ export default function TodoList({
       return next
     })
   }
+
+  const tagCounts = todos.reduce<Record<string, number>>((counts, t) => {
+    for (const tt of t.todo_tags) counts[tt.tag_id] = (counts[tt.tag_id] ?? 0) + 1
+    return counts
+  }, {})
 
   const filteredTodos =
     activeTagIds.size === 0
@@ -829,6 +850,7 @@ export default function TodoList({
       {manageTagsOpen && (
         <ManageTagsModal
           tags={tags}
+          tagCounts={tagCounts}
           onClose={() => setManageTagsOpen(false)}
           onCreate={createTag}
           onRename={renameTag}
