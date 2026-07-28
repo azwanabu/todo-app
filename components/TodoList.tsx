@@ -358,8 +358,8 @@ function ItemBody({
   const dueStyle = dueDateStyle(diff, todo.is_complete)
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 group">
-      <div className="flex items-center gap-3">
+    <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 md:px-5 md:py-3.5 lg:px-6 lg:py-4 group">
+      <div className="flex items-center gap-3 md:gap-4">
         {dragHandleProps ? (
           <button className="cursor-grab active:cursor-grabbing shrink-0 touch-none" {...dragHandleProps}>
             <DragHandle />
@@ -384,7 +384,7 @@ function ItemBody({
         </button>
 
         <div className="flex-1 flex flex-col md:flex-row md:items-center gap-1 md:gap-2 min-w-0">
-          <span className={`text-sm md:flex-1 min-w-0 ${todo.is_complete ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+          <span className={`text-sm md:text-base md:flex-1 min-w-0 ${todo.is_complete ? 'line-through text-gray-400' : 'text-gray-800'}`}>
             {todo.task}
           </span>
           <div className="flex items-center gap-1 flex-wrap">
@@ -668,14 +668,14 @@ export default function TodoList({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 md:space-y-5">
       <form onSubmit={addTodo} className="flex flex-col sm:flex-row gap-2">
         <input
           type="text"
           value={newTask}
           onChange={e => setNewTask(e.target.value)}
           placeholder="What needs to be done?"
-          className="flex-1 border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <input
           type="date"
@@ -781,7 +781,7 @@ export default function TodoList({
         isDraggable ? (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={visibleItems.map(t => t.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
+              <div className="space-y-2 md:space-y-2.5 lg:space-y-3">
                 {visibleItems.map(todo => (
                   <SortableTodoItem key={todo.id} todo={todo} {...itemProps} />
                 ))}
@@ -789,7 +789,7 @@ export default function TodoList({
             </SortableContext>
           </DndContext>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 md:space-y-2.5 lg:space-y-3">
             {visibleItems.map(todo => (
               <DoneItem key={todo.id} todo={todo} {...itemProps} />
             ))}

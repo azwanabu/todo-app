@@ -60,9 +60,9 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen">
-      <header className="bg-white border-b border-gray-200 px-4 py-4">
-        <div className="max-w-xl mx-auto flex items-center justify-between">
-          <h1 className="text-lg font-bold text-gray-900">My Todos</h1>
+      <header className="bg-white border-b border-gray-200 px-4 py-4 md:px-6 lg:px-8">
+        <div className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto flex items-center justify-between">
+          <h1 className="text-lg md:text-xl font-bold text-gray-900">My Todos</h1>
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-500 truncate max-w-35 sm:max-w-none">{user.email}</span>
             <form action="/auth/signout" method="post">
@@ -73,7 +73,7 @@ export default async function HomePage() {
           </div>
         </div>
       </header>
-      <main className="max-w-xl mx-auto px-4 py-8">
+      <main className="max-w-xl md:max-w-3xl lg:max-w-5xl mx-auto px-4 py-8 md:px-6 lg:px-8">
         <Suspense fallback={<TodosSkeleton />}>
           <TodosLoader userId={user.id} />
         </Suspense>
