@@ -38,6 +38,41 @@ function tagColor(index: number) {
   return TAG_COLORS[index % TAG_COLORS.length]
 }
 
+function tomorrowISO() {
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().slice(0, 10)
+}
+
+function daysUntil(dueDate: string) {
+  const [y, m, d] = dueDate.split('-').map(Number)
+  const due = new Date(y, m - 1, d)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  return Math.round((due.getTime() - today.getTime()) / 86400000)
+}
+
+function formatDueDate(dueDate: string) {
+  const [y, m, d] = dueDate.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+function relativeDueLabel(diff: number) {
+  if (diff === 0) return 'Today'
+  if (diff === 1) return 'Tomorrow'
+  if (diff === -1) return 'Yesterday'
+  if (diff > 1) return `${diff}d left`
+  return `${-diff}d overdue`
+}
+
+function dueDateStyle(diff: number, done: boolean) {
+  if (done) return { bg: '#f3f4f6', text: '#6b7280' }
+  if (diff < 0) return { bg: '#fee2e2', text: '#b91c1c' }
+  if (diff === 0) return { bg: '#fef3c7', text: '#b45309' }
+  if (diff <= 3) return { bg: '#dbeafe', text: '#1d4ed8' }
+  return { bg: '#f3f4f6', text: '#4b5563' }
+}
+
 type Tag = {
   id: string
   name: string
@@ -57,6 +92,7 @@ type Todo = {
   inserted_at: string
   user_id: string
   position: number
+  due_date: string
   todo_tags: TodoTag[]
 }
 
@@ -145,6 +181,139 @@ function TagPicker({
   )
 }
 
+function DueDatePicker({
+  value,
+  onChange,
+  onClose,
+}: {
+  value: string
+  onChange: (date: string) => void
+  onClose: () => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [onClose])
+
+  return (
+    <div ref={ref} className="absolute z-50 top-full left-0 mt-1 bg-white rounded-xl border border-gray-200 shadow-lg p-2">
+      <input
+        type="date"
+        autoFocus
+        defaultValue={value}
+        onChange={e => {
+          if (e.target.value) onChange(e.target.value)
+          onClose()
+        }}
+        className="text-xs px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+      />
+    </div>
+  )
+}
+
+function ManageTagsModal({
+  tags,
+  onClose,
+  onCreate,
+  onRename,
+  onDelete,
+}: {
+  tags: Tag[]
+  onClose: () => void
+  onCreate: (name: string) => Promise<void>
+  onRename: (tagId: string, name: string) => Promise<void>
+  onDelete: (tagId: string) => Promise<void>
+}) {
+  const [newName, setNewName] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingName, setEditingName] = useState('')
+
+  function commitRename(tag: Tag) {
+    const trimmed = editingName.trim()
+    if (trimmed && trimmed !== tag.name) onRename(tag.id, trimmed)
+    setEditingId(null)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-gray-800">Manage tags</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+        </div>
+
+        <div className="space-y-1 max-h-64 overflow-y-auto mb-3">
+          {tags.length === 0 && <p className="text-xs text-gray-400 text-center py-4">No tags yet.</p>}
+          {tags.map(tag => {
+            const c = tagColor(tag.color_index)
+            return (
+              <div key={tag.id} className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.text }} />
+                {editingId === tag.id ? (
+                  <input
+                    autoFocus
+                    value={editingName}
+                    onChange={e => setEditingName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') commitRename(tag)
+                      if (e.key === 'Escape') setEditingId(null)
+                    }}
+                    onBlur={() => commitRename(tag)}
+                    className="flex-1 text-xs px-2 py-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                ) : (
+                  <button
+                    onClick={() => { setEditingId(tag.id); setEditingName(tag.name) }}
+                    className="flex-1 text-left text-xs px-2 py-1 rounded-lg hover:bg-gray-50 text-gray-700 truncate"
+                  >
+                    {tag.name}
+                  </button>
+                )}
+                <button
+                  onClick={() => { if (confirm(`Delete tag "${tag.name}"? It will be removed from all todos.`)) onDelete(tag.id) }}
+                  className="text-gray-300 hover:text-red-400 transition-colors text-sm leading-none px-1 shrink-0"
+                  title="Delete tag"
+                >
+                  ×
+                </button>
+              </div>
+            )
+          })}
+        </div>
+
+        <form
+          onSubmit={e => {
+            e.preventDefault()
+            if (!newName.trim()) return
+            onCreate(newName.trim())
+            setNewName('')
+          }}
+          className="flex gap-2"
+        >
+          <input
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            placeholder="New tag name…"
+            className="flex-1 text-xs px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <button
+            type="submit"
+            disabled={!newName.trim()}
+            className="text-xs bg-blue-600 text-white rounded-lg px-3 py-1.5 font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            Add
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 type ItemProps = {
   todo: Todo
   tags: Tag[]
@@ -154,6 +323,7 @@ type ItemProps = {
   onRemoveTag: (todoId: string, tagId: string) => Promise<void>
   onCreateAndAddTag: (todoId: string, name: string) => Promise<void>
   onTagFilterClick: (tagId: string) => void
+  onUpdateDueDate: (todoId: string, dueDate: string) => Promise<void>
 }
 
 function ItemBody({
@@ -165,9 +335,11 @@ function ItemBody({
   onRemoveTag,
   onCreateAndAddTag,
   onTagFilterClick,
+  onUpdateDueDate,
   dragHandleProps,
 }: ItemProps & { dragHandleProps?: React.HTMLAttributes<HTMLButtonElement> }) {
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [dueDatePickerOpen, setDueDatePickerOpen] = useState(false)
   const pickerContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -182,6 +354,8 @@ function ItemBody({
   }, [pickerOpen])
 
   const assignedTags = todo.todo_tags.map(tt => tt.tags).filter(Boolean)
+  const diff = daysUntil(todo.due_date)
+  const dueStyle = dueDateStyle(diff, todo.is_complete)
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 group">
@@ -214,6 +388,23 @@ function ItemBody({
             {todo.task}
           </span>
           <div className="flex items-center gap-1 flex-wrap">
+            <div className="relative shrink-0">
+              <button
+                onClick={() => setDueDatePickerOpen(v => !v)}
+                className="inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap"
+                style={{ backgroundColor: dueStyle.bg, color: dueStyle.text }}
+                title="Change due date"
+              >
+                {formatDueDate(todo.due_date)} · {relativeDueLabel(diff)}
+              </button>
+              {dueDatePickerOpen && (
+                <DueDatePicker
+                  value={todo.due_date}
+                  onChange={date => onUpdateDueDate(todo.id, date)}
+                  onClose={() => setDueDatePickerOpen(false)}
+                />
+              )}
+            </div>
             {assignedTags.map(tag => {
               const c = tagColor(tag.color_index)
               return (
@@ -292,11 +483,14 @@ export default function TodoList({
   const [todos, setTodos] = useState<Todo[]>(sorted)
   const [tags, setTags] = useState<Tag[]>(initialTags)
   const [newTask, setNewTask] = useState('')
+  const [newDueDate, setNewDueDate] = useState(tomorrowISO())
   const [loading, setLoading] = useState(false)
   const [showAll, setShowAll] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [activeTagIds, setActiveTagIds] = useState<Set<string>>(new Set())
   const [activeTab, setActiveTab] = useState<'todo' | 'done'>('todo')
+  const [sortMode, setSortMode] = useState<'default' | 'due'>('default')
+  const [manageTagsOpen, setManageTagsOpen] = useState(false)
 
   const sensors = useSensors(useSensor(PointerSensor))
 
@@ -324,7 +518,12 @@ export default function TodoList({
 
   const filteredPending = filteredTodos.filter(t => !t.is_complete)
   const filteredCompleted = filteredTodos.filter(t => t.is_complete)
-  const currentTabItems = activeTab === 'todo' ? filteredPending : filteredCompleted
+  const baseTabItems = activeTab === 'todo' ? filteredPending : filteredCompleted
+  const currentTabItems =
+    sortMode === 'due'
+      ? [...baseTabItems].sort((a, b) => a.due_date.localeCompare(b.due_date))
+      : baseTabItems
+  const isDraggable = activeTab === 'todo' && sortMode === 'default'
 
   const usePagination = currentTabItems.length > PAGE_SIZE
   const totalPages = Math.ceil(currentTabItems.length / PAGE_SIZE)
@@ -343,15 +542,28 @@ export default function TodoList({
     const maxPosition = todos.length > 0 ? Math.max(...todos.map(t => t.position)) + 1 : 0
     const { data, error } = await supabase
       .from('todos')
-      .insert({ task: newTask.trim(), user_id: userId, is_complete: false, position: maxPosition })
+      .insert({
+        task: newTask.trim(),
+        user_id: userId,
+        is_complete: false,
+        position: maxPosition,
+        due_date: newDueDate || tomorrowISO(),
+      })
       .select()
       .single()
     if (!error && data) {
       setTodos(prev => [...prev, { ...data, todo_tags: [] }])
       setNewTask('')
+      setNewDueDate(tomorrowISO())
       if (activeTab !== 'todo') switchTab('todo')
     }
     setLoading(false)
+  }
+
+  async function updateDueDate(todoId: string, dueDate: string) {
+    const supabase = createClient()
+    const { error } = await supabase.from('todos').update({ due_date: dueDate }).eq('id', todoId)
+    if (!error) setTodos(prev => prev.map(t => t.id === todoId ? { ...t, due_date: dueDate } : t))
   }
 
   async function toggleTodo(todo: Todo) {
@@ -411,6 +623,39 @@ export default function TodoList({
     }
   }
 
+  async function createTag(name: string) {
+    const supabase = createClient()
+    const color_index = tags.length % TAG_COLORS.length
+    const { data, error } = await supabase.from('tags').insert({ name, user_id: userId, color_index }).select().single()
+    if (!error && data) setTags(prev => [...prev, data])
+  }
+
+  async function renameTag(tagId: string, name: string) {
+    const supabase = createClient()
+    const { error } = await supabase.from('tags').update({ name }).eq('id', tagId)
+    if (!error) {
+      setTags(prev => prev.map(t => t.id === tagId ? { ...t, name } : t))
+      setTodos(prev => prev.map(t => ({
+        ...t,
+        todo_tags: t.todo_tags.map(tt => tt.tag_id === tagId ? { ...tt, tags: { ...tt.tags, name } } : tt),
+      })))
+    }
+  }
+
+  async function deleteTag(tagId: string) {
+    const supabase = createClient()
+    const { error } = await supabase.from('tags').delete().eq('id', tagId)
+    if (!error) {
+      setTags(prev => prev.filter(t => t.id !== tagId))
+      setTodos(prev => prev.map(t => ({ ...t, todo_tags: t.todo_tags.filter(tt => tt.tag_id !== tagId) })))
+      setActiveTagIds(prev => {
+        const next = new Set(prev)
+        next.delete(tagId)
+        return next
+      })
+    }
+  }
+
   const itemProps = {
     tags,
     onToggle: toggleTodo,
@@ -419,17 +664,24 @@ export default function TodoList({
     onRemoveTag: removeTag,
     onCreateAndAddTag: createAndAddTag,
     onTagFilterClick: toggleTagFilter,
+    onUpdateDueDate: updateDueDate,
   }
 
   return (
     <div className="space-y-4">
-      <form onSubmit={addTodo} className="flex gap-2">
+      <form onSubmit={addTodo} className="flex flex-col sm:flex-row gap-2">
         <input
           type="text"
           value={newTask}
           onChange={e => setNewTask(e.target.value)}
           placeholder="What needs to be done?"
           className="flex-1 border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <input
+          type="date"
+          value={newDueDate}
+          onChange={e => setNewDueDate(e.target.value)}
+          className="border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <button
           type="submit"
@@ -440,61 +692,75 @@ export default function TodoList({
         </button>
       </form>
 
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 items-center">
-          {tags.map(tag => {
-            const c = tagColor(tag.color_index)
-            const active = activeTagIds.has(tag.id)
-            return (
-              <button
-                key={tag.id}
-                onClick={() => toggleTagFilter(tag.id)}
-                style={{ backgroundColor: c.bg, color: c.text, outline: active ? `2px solid ${c.text}` : 'none', outlineOffset: '2px' }}
-                className="text-xs px-2.5 py-1 rounded-full font-medium transition-all"
-              >
-                {tag.name}
-              </button>
-            )
-          })}
-          {activeTagIds.size > 0 && (
+      <div className="flex flex-wrap gap-1.5 items-center">
+        {tags.map(tag => {
+          const c = tagColor(tag.color_index)
+          const active = activeTagIds.has(tag.id)
+          return (
             <button
-              onClick={() => { setActiveTagIds(new Set()); setCurrentPage(1) }}
-              className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 transition-colors"
+              key={tag.id}
+              onClick={() => toggleTagFilter(tag.id)}
+              style={{ backgroundColor: c.bg, color: c.text, outline: active ? `2px solid ${c.text}` : 'none', outlineOffset: '2px' }}
+              className="text-xs px-2.5 py-1 rounded-full font-medium transition-all"
             >
-              Clear filter
+              {tag.name}
             </button>
-          )}
-        </div>
-      )}
+          )
+        })}
+        {activeTagIds.size > 0 && (
+          <button
+            onClick={() => { setActiveTagIds(new Set()); setCurrentPage(1) }}
+            className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 transition-colors"
+          >
+            Clear filter
+          </button>
+        )}
+        <button
+          onClick={() => setManageTagsOpen(true)}
+          className="text-xs text-gray-400 hover:text-gray-600 underline px-2 py-1 transition-colors"
+        >
+          Manage tags
+        </button>
+      </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200">
-        <button
-          onClick={() => switchTab('todo')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'todo'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
+      <div className="flex items-center justify-between border-b border-gray-200">
+        <div className="flex">
+          <button
+            onClick={() => switchTab('todo')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'todo'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            To Do
+            {filteredPending.length > 0 && (
+              <span className="ml-1.5 text-xs bg-blue-100 text-blue-600 rounded-full px-1.5 py-0.5">{filteredPending.length}</span>
+            )}
+          </button>
+          <button
+            onClick={() => switchTab('done')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'done'
+                ? 'border-green-600 text-green-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Done
+            {filteredCompleted.length > 0 && (
+              <span className="ml-1.5 text-xs bg-green-100 text-green-600 rounded-full px-1.5 py-0.5">{filteredCompleted.length}</span>
+            )}
+          </button>
+        </div>
+        <select
+          value={sortMode}
+          onChange={e => { setSortMode(e.target.value as 'default' | 'due'); setCurrentPage(1) }}
+          className="text-xs text-gray-500 border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400"
         >
-          To Do
-          {filteredPending.length > 0 && (
-            <span className="ml-1.5 text-xs bg-blue-100 text-blue-600 rounded-full px-1.5 py-0.5">{filteredPending.length}</span>
-          )}
-        </button>
-        <button
-          onClick={() => switchTab('done')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'done'
-              ? 'border-green-600 text-green-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          Done
-          {filteredCompleted.length > 0 && (
-            <span className="ml-1.5 text-xs bg-green-100 text-green-600 rounded-full px-1.5 py-0.5">{filteredCompleted.length}</span>
-          )}
-        </button>
+          <option value="default">Default order</option>
+          <option value="due">Sort by due date</option>
+        </select>
       </div>
 
       {todos.length === 0 && (
@@ -511,24 +777,24 @@ export default function TodoList({
         </p>
       )}
 
-      {activeTab === 'todo' && visibleItems.length > 0 && (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={visibleItems.map(t => t.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2">
-              {visibleItems.map(todo => (
-                <SortableTodoItem key={todo.id} todo={todo} {...itemProps} />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
-      )}
-
-      {activeTab === 'done' && visibleItems.length > 0 && (
-        <div className="space-y-2">
-          {visibleItems.map(todo => (
-            <DoneItem key={todo.id} todo={todo} {...itemProps} />
-          ))}
-        </div>
+      {visibleItems.length > 0 && (
+        isDraggable ? (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={visibleItems.map(t => t.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-2">
+                {visibleItems.map(todo => (
+                  <SortableTodoItem key={todo.id} todo={todo} {...itemProps} />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        ) : (
+          <div className="space-y-2">
+            {visibleItems.map(todo => (
+              <DoneItem key={todo.id} todo={todo} {...itemProps} />
+            ))}
+          </div>
+        )
       )}
 
       {!usePagination && currentTabItems.length > PREVIEW_SIZE && (
@@ -558,6 +824,16 @@ export default function TodoList({
             Next
           </button>
         </div>
+      )}
+
+      {manageTagsOpen && (
+        <ManageTagsModal
+          tags={tags}
+          onClose={() => setManageTagsOpen(false)}
+          onCreate={createTag}
+          onRename={renameTag}
+          onDelete={deleteTag}
+        />
       )}
     </div>
   )

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat /Applications/MAMP/htdocs/claude-code/todo-app/package.json; echo ---; cat /Applications/MAMp/htdocs 2>/dev/null; which supabase 2>/dev/null; echo ---; cat /Applications/MAMP/htdocs/claude-code/todo-app/README.md)",
+      "Read(//Applications/MAMP/htdocs/**)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(npx next *)"
+    ]
+  }
+}

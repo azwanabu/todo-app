@@ -1,12 +1,10 @@
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import TodoList from '@/components/TodoList'
 
-export default async function HomePage() {
+async function TodosLoader({ userId }: { userId: string }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) redirect('/login')
 
   const [{ data: todosWithTags, error: todosError }, { data: tags }] = await Promise.all([
     supabase
@@ -18,25 +16,47 @@ export default async function HomePage() {
           tags ( id, name, color_index, user_id )
         )
       `)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('position', { ascending: true }),
     supabase
       .from('tags')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('inserted_at', { ascending: true }),
   ])
 
-  // If the tags tables don't exist yet, fall back to plain todos with empty tag arrays
   let todos = todosWithTags
   if (todosError) {
     const { data: plainTodos } = await supabase
       .from('todos')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('position', { ascending: true })
     todos = plainTodos?.map(t => ({ ...t, todo_tags: [] })) ?? []
   }
+
+  return <TodoList initialTodos={todos ?? []} initialTags={tags ?? []} userId={userId} />
+}
+
+function TodosSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
+      <div className="h-8 w-32 bg-gray-100 rounded animate-pulse" />
+      {[0, 1, 2].map(i => (
+        <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />
+      ))}
+    </div>
+  )
+}
+
+export default async function HomePage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) redirect('/login')
+
+  const shareUrl = `${(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://todo.qprm.com').trim().replace(/\/$/, '')}/u/${user.id}`
 
   return (
     <div className="min-h-screen">
@@ -54,17 +74,14 @@ export default async function HomePage() {
         </div>
       </header>
       <main className="max-w-xl mx-auto px-4 py-8">
-        <TodoList initialTodos={todos ?? []} initialTags={tags ?? []} userId={user.id} />
+        <Suspense fallback={<TodosSkeleton />}>
+          <TodosLoader userId={user.id} />
+        </Suspense>
         <div className="mt-10 pt-6 border-t border-gray-200">
           <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Your public top-5 link</p>
-          {(() => {
-            const shareUrl = `${(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://todo.qprm.com').trim().replace(/\/$/, '')}/u/${user.id}`
-            return (
-              <a href={shareUrl} target="_blank" className="text-sm text-blue-500 hover:underline break-all">
-                {shareUrl}
-              </a>
-            )
-          })()}
+          <a href={shareUrl} target="_blank" className="text-sm text-blue-500 hover:underline break-all">
+            {shareUrl}
+          </a>
         </div>
       </main>
     </div>
