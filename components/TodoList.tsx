@@ -340,6 +340,7 @@ type ItemProps = {
   onCreateAndAddTag: (todoId: string, name: string) => Promise<void>
   onTagFilterClick: (tagId: string) => void
   onUpdateDueDate: (todoId: string, dueDate: string) => Promise<void>
+  onUpdateTask: (todoId: string, task: string) => Promise<void>
 }
 
 function ItemBody({
@@ -352,11 +353,21 @@ function ItemBody({
   onCreateAndAddTag,
   onTagFilterClick,
   onUpdateDueDate,
+  onUpdateTask,
   dragHandleProps,
 }: ItemProps & { dragHandleProps?: React.HTMLAttributes<HTMLButtonElement> }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [dueDatePickerOpen, setDueDatePickerOpen] = useState(false)
+  const [editingTask, setEditingTask] = useState(false)
+  const [taskDraft, setTaskDraft] = useState(todo.task)
   const pickerContainerRef = useRef<HTMLDivElement>(null)
+
+  function commitTask() {
+    const trimmed = taskDraft.trim()
+    if (trimmed && trimmed !== todo.task) onUpdateTask(todo.id, trimmed)
+    else setTaskDraft(todo.task)
+    setEditingTask(false)
+  }
 
   useEffect(() => {
     if (!pickerOpen) return
@@ -400,9 +411,27 @@ function ItemBody({
         </button>
 
         <div className="flex-1 flex flex-col md:flex-row md:items-center gap-1 md:gap-2 min-w-0">
-          <span className={`text-sm md:text-base md:flex-1 min-w-0 ${todo.is_complete ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-            {todo.task}
-          </span>
+          {editingTask ? (
+            <input
+              autoFocus
+              value={taskDraft}
+              onChange={e => setTaskDraft(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') commitTask()
+                if (e.key === 'Escape') { setTaskDraft(todo.task); setEditingTask(false) }
+              }}
+              onBlur={commitTask}
+              className="text-sm md:text-base md:flex-1 min-w-0 border border-gray-200 rounded-lg px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
+            />
+          ) : (
+            <span
+              onClick={() => { setTaskDraft(todo.task); setEditingTask(true) }}
+              className={`text-sm md:text-base md:flex-1 min-w-0 cursor-text rounded-lg px-2 py-0.5 -mx-2 hover:bg-gray-50 transition-colors ${todo.is_complete ? 'line-through text-gray-400' : 'text-gray-800'}`}
+              title="Click to edit"
+            >
+              {todo.task}
+            </span>
+          )}
           <div className="flex items-center gap-1 flex-wrap">
             <div className="relative shrink-0">
               <button
@@ -587,6 +616,12 @@ export default function TodoList({
     if (!error) setTodos(prev => prev.map(t => t.id === todoId ? { ...t, due_date: dueDate } : t))
   }
 
+  async function updateTask(todoId: string, task: string) {
+    const supabase = createClient()
+    const { error } = await supabase.from('todos').update({ task }).eq('id', todoId)
+    if (!error) setTodos(prev => prev.map(t => t.id === todoId ? { ...t, task } : t))
+  }
+
   async function toggleTodo(todo: Todo) {
     const supabase = createClient()
     const { error } = await supabase.from('todos').update({ is_complete: !todo.is_complete }).eq('id', todo.id)
@@ -686,6 +721,7 @@ export default function TodoList({
     onCreateAndAddTag: createAndAddTag,
     onTagFilterClick: toggleTagFilter,
     onUpdateDueDate: updateDueDate,
+    onUpdateTask: updateTask,
   }
 
   return (
