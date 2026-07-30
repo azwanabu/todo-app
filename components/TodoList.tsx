@@ -223,6 +223,7 @@ function ManageTagsModal({
   onCreate,
   onRename,
   onDelete,
+  onUpdateColor,
 }: {
   tags: Tag[]
   tagCounts: Record<string, number>
@@ -230,10 +231,12 @@ function ManageTagsModal({
   onCreate: (name: string) => Promise<void>
   onRename: (tagId: string, name: string) => Promise<void>
   onDelete: (tagId: string) => Promise<void>
+  onUpdateColor: (tagId: string, colorIndex: number) => Promise<void>
 }) {
   const [newName, setNewName] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
+  const [colorPickerId, setColorPickerId] = useState<string | null>(null)
 
   function commitRename(tag: Tag) {
     const trimmed = editingName.trim()
@@ -255,8 +258,26 @@ function ManageTagsModal({
             const c = tagColor(tag.color_index)
             const count = tagCounts[tag.id] ?? 0
             return (
-              <div key={tag.id} className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.text }} />
+              <div key={tag.id} className="relative flex items-center gap-2">
+                <button
+                  onClick={() => setColorPickerId(v => (v === tag.id ? null : tag.id))}
+                  className="w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-offset-1 ring-transparent hover:ring-gray-300 transition-shadow"
+                  style={{ backgroundColor: c.text }}
+                  title="Change color"
+                />
+                {colorPickerId === tag.id && (
+                  <div className="absolute z-10 top-full left-0 mt-1 flex flex-wrap gap-1.5 w-32 bg-white rounded-xl border border-gray-200 shadow-lg p-2">
+                    {TAG_COLORS.map((color, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => { onUpdateColor(tag.id, idx); setColorPickerId(null) }}
+                        className="w-4 h-4 rounded-full shrink-0 ring-1 ring-offset-1 ring-transparent hover:ring-gray-400 transition-shadow"
+                        style={{ backgroundColor: color.text, outline: tag.color_index === idx ? '2px solid #6b7280' : 'none', outlineOffset: '1px' }}
+                        title={`Color ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
                 {editingId === tag.id ? (
                   <input
                     autoFocus
@@ -698,6 +719,18 @@ export default function TodoList({
     }
   }
 
+  async function updateTagColor(tagId: string, colorIndex: number) {
+    const supabase = createClient()
+    const { error } = await supabase.from('tags').update({ color_index: colorIndex }).eq('id', tagId)
+    if (!error) {
+      setTags(prev => prev.map(t => t.id === tagId ? { ...t, color_index: colorIndex } : t))
+      setTodos(prev => prev.map(t => ({
+        ...t,
+        todo_tags: t.todo_tags.map(tt => tt.tag_id === tagId ? { ...tt, tags: { ...tt.tags, color_index: colorIndex } } : tt),
+      })))
+    }
+  }
+
   async function deleteTag(tagId: string) {
     const supabase = createClient()
     const { error } = await supabase.from('tags').delete().eq('id', tagId)
@@ -891,6 +924,7 @@ export default function TodoList({
           onCreate={createTag}
           onRename={renameTag}
           onDelete={deleteTag}
+          onUpdateColor={updateTagColor}
         />
       )}
     </div>
