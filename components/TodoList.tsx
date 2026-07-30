@@ -560,6 +560,7 @@ export default function TodoList({
 
   const filterStorageKey = `todo-filter-tags:${userId}`
   const sortStorageKey = `todo-sort-mode:${userId}`
+  const defaultDateStorageKey = `todo-default-date:${userId}`
 
   useEffect(() => {
     try {
@@ -567,9 +568,18 @@ export default function TodoList({
       if (storedFilter) setActiveTagIds(new Set(JSON.parse(storedFilter)))
       const storedSort = localStorage.getItem(sortStorageKey)
       if (storedSort === 'default' || storedSort === 'due') setSortMode(storedSort)
+      const storedDate = localStorage.getItem(defaultDateStorageKey)
+      if (storedDate) setNewDueDate(storedDate)
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  function changeNewDueDate(date: string) {
+    setNewDueDate(date)
+    try {
+      localStorage.setItem(defaultDateStorageKey, date)
+    } catch {}
+  }
 
   useEffect(() => {
     try {
@@ -652,7 +662,6 @@ export default function TodoList({
     if (!error && data) {
       setTodos(prev => [...prev, { ...data, todo_tags: [] }])
       setNewTask('')
-      setNewDueDate(tomorrowISO())
       if (activeTab !== 'todo') switchTab('todo')
     }
     setLoading(false)
@@ -797,7 +806,7 @@ export default function TodoList({
         <input
           type="date"
           value={newDueDate}
-          onChange={e => setNewDueDate(e.target.value)}
+          onChange={e => changeNewDueDate(e.target.value)}
           className="border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <button
