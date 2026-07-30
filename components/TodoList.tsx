@@ -558,6 +558,33 @@ export default function TodoList({
   const [sortMode, setSortMode] = useState<'default' | 'due'>('default')
   const [manageTagsOpen, setManageTagsOpen] = useState(false)
 
+  const filterStorageKey = `todo-filter-tags:${userId}`
+  const sortStorageKey = `todo-sort-mode:${userId}`
+
+  useEffect(() => {
+    try {
+      const storedFilter = localStorage.getItem(filterStorageKey)
+      if (storedFilter) setActiveTagIds(new Set(JSON.parse(storedFilter)))
+      const storedSort = localStorage.getItem(sortStorageKey)
+      if (storedSort === 'default' || storedSort === 'due') setSortMode(storedSort)
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(filterStorageKey, JSON.stringify(Array.from(activeTagIds)))
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTagIds])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(sortStorageKey, sortMode)
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortMode])
+
   const sensors = useSensors(useSensor(PointerSensor))
 
   function switchTab(tab: 'todo' | 'done') {
