@@ -104,6 +104,19 @@ function DragHandle() {
   )
 }
 
+function TrashIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M4 7h16M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2m3 0-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6"
+      />
+    </svg>
+  )
+}
+
 function TagPicker({
   todo,
   tags,
@@ -599,9 +612,10 @@ function ItemBody({
 
         <button
           onClick={() => onDelete(todo.id)}
-          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all text-lg leading-none shrink-0"
+          title="Delete task"
+          className="text-gray-400 hover:text-red-500 transition-colors shrink-0 rounded p-1 -m-1 hover:bg-red-50"
         >
-          ×
+          <TrashIcon />
         </button>
       </div>
     </div>
