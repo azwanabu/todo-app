@@ -5,7 +5,14 @@
       "Read(//Applications/MAMP/htdocs/**)",
       "Bash(npx tsc *)",
       "Bash(npx eslint *)",
-      "Bash(npx next *)"
+      "Bash(npx next *)",
+      "Bash(find / -maxdepth 4 -iname \"*chromium-cli*\")",
+      "Read(//private/tmp/claude-501/bundled-skills/2.1.220/**)",
+      "Bash(npx --yes playwright --version)",
+      "Bash(node -e \"require.resolve\\('playwright'\\)\")",
+      "Read(//Users/azwan/Library/Caches/ms-playwright/**)",
+      "Read(//Users/azwan/.cache/**)",
+      "Bash(npm install *)"
     ]
   }
 }

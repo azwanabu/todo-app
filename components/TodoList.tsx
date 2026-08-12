@@ -464,6 +464,7 @@ type ItemProps = {
   onTagFilterClick: (tagId: string) => void
   onUpdateDueDate: (todoId: string, dueDate: string) => Promise<void>
   onUpdateTask: (todoId: string, task: string) => Promise<void>
+  dragDisabledReason?: string
 }
 
 function ItemBody({
@@ -478,6 +479,7 @@ function ItemBody({
   onUpdateDueDate,
   onUpdateTask,
   dragHandleProps,
+  dragDisabledReason,
 }: ItemProps & { dragHandleProps?: React.HTMLAttributes<HTMLButtonElement> }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [dueDatePickerOpen, setDueDatePickerOpen] = useState(false)
@@ -515,6 +517,15 @@ function ItemBody({
             className="cursor-grab active:cursor-grabbing shrink-0 touch-none rounded bg-gray-50 p-1 -m-1 hover:bg-gray-100 transition-colors"
             title="Drag to reorder"
             {...dragHandleProps}
+          >
+            <DragHandle />
+          </button>
+        ) : dragDisabledReason ? (
+          <button
+            type="button"
+            disabled
+            title={dragDisabledReason}
+            className="shrink-0 rounded bg-gray-50 p-1 -m-1 opacity-50 cursor-not-allowed"
           >
             <DragHandle />
           </button>
@@ -988,6 +999,10 @@ export default function TodoList({
     onTagFilterClick: toggleTagFilter,
     onUpdateDueDate: updateDueDate,
     onUpdateTask: updateTask,
+    dragDisabledReason:
+      activeTab === 'todo' && sortMode === 'due'
+        ? 'Switch to Default order to drag and reorder'
+        : undefined,
   }
 
   return (

@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import TodoList from '@/components/TodoList'
+import TermsFooter from '@/components/TermsFooter'
 
 async function TodosLoader({ userId }: { userId: string }) {
   const supabase = await createClient()
@@ -84,6 +85,7 @@ export default async function HomePage() {
           </a>
         </div>
       </main>
+      <TermsFooter />
     </div>
   )
 }
